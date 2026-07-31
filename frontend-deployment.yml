@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventrack-frontend
+  namespace: inventrack-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventrack-frontend
+  template:
+    metadata:
+      labels:
+        app: inventrack-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: inventrack-k8s-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          env:
+            - name: VITE_API_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: inventrack-config
+                  key: VITE_API_BASE_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventrack-frontend
+  namespace: inventrack-prod
+spec:
+  selector:
+    app: inventrack-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

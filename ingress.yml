@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: inventrack-ingress
+  namespace: inventrack-prod
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: conjunta3p.espe.edu.ec
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: inventrack-frontend
+                port:
+                  number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: inventrack-backend
+                port:
+                  number: 4000

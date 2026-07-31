@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventrack-mysql
+  namespace: inventrack-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventrack-mysql
+  template:
+    metadata:
+      labels:
+        app: inventrack-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: inventrack-secrets
+                  key: mysql-root-password
+            - name: MYSQL_DATABASE
+              value: inventrack
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+            - name: mysql-init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: inventrack-mysql-pvc
+        - name: mysql-init
+          configMap:
+            name: inventrack-mysql-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventrack-mysql
+  namespace: inventrack-prod
+spec:
+  selector:
+    app: inventrack-mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+  type: ClusterIP

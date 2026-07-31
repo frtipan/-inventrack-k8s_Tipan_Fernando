@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventrack-mysql-init
+  namespace: inventrack-prod
+data:
+  init.sql: |
+    CREATE DATABASE IF NOT EXISTS `inventrack` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+    USE `inventrack`;
+    DROP TABLE IF EXISTS `auditoria`;
+    DROP TABLE IF EXISTS `categorias`;
+    DROP TABLE IF EXISTS `historial_precios`;
+    DROP TABLE IF EXISTS `movimientos`;
+    DROP TABLE IF EXISTS `productos`;
+    DROP TABLE IF EXISTS `proveedores`;
+    DROP TABLE IF EXISTS `usuarios`;
+    CREATE TABLE `categorias` (
+      `id` int NOT NULL AUTO_INCREMENT,
+      `nombre` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+      `descripcion` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+      `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `nombre` (`nombre`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    CREATE TABLE `proveedores` (
+      `id` int NOT NULL AUTO_INCREMENT,
+      `nombre` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+      `contacto` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+      `telefono` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+      `email` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+      `direccion` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+      `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    CREATE TABLE `usuarios` (
+      `id` int NOT NULL AUTO_INCREMENT,
+      `nombre` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+      `email` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+      `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+      `rol` enum('admin','almacenero') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'almacenero',
+      `activo` tinyint(1) DEFAULT '1',
+      `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `email` (`email`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    CREATE TABLE `productos` (
+      `id` int NOT NULL AUTO_INCREMENT,
+      `sku` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+      `nombre` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+      `descripcion` text COLLATE utf8mb4_unicode_ci,
+      `categoria_id` int DEFAULT NULL,
+      `proveedor_id` int DEFAULT NULL,
+      `precio_compra` decimal(10,2) NOT NULL DEFAULT '0.00',
+      `precio_venta` decimal(10,2) NOT NULL DEFAULT '0.00',
+      `stock_actual` int NOT NULL DEFAULT '0',
+      `stock_minimo` int NOT NULL DEFAULT '5',
+      `ubicacion` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+      `imagen_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+      `activo` tinyint(1) DEFAULT '1',
+      `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `sku` (`sku`),
+      KEY `categoria_id` (`categoria_id`),
+      KEY `proveedor_id` (`proveedor_id`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    CREATE TABLE `movimientos` (
+      `id` int NOT NULL AUTO_INCREMENT,
+      `producto_id` int NOT NULL,
+      `usuario_id` int NOT NULL,
+      `tipo` enum('entrada','salida') COLLATE utf8mb4_unicode_ci NOT NULL,
+      `cantidad` int NOT NULL,
+      `stock_anterior` int NOT NULL,
+      `stock_nuevo` int NOT NULL,
+      `motivo` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+      `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`),
+      KEY `producto_id` (`producto_id`),
+      KEY `usuario_id` (`usuario_id`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    CREATE TABLE `auditoria` (
+      `id` int NOT NULL AUTO_INCREMENT,
+      `usuario_id` int DEFAULT NULL,
+      `accion` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+      `tabla_afectada` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+      `registro_id` int DEFAULT NULL,
+      `detalle` text COLLATE utf8mb4_unicode_ci,
+      `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`),
+      KEY `usuario_id` (`usuario_id`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    ALTER TABLE `productos` ADD CONSTRAINT `productos_ibfk_1` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`) ON DELETE SET NULL;
+    ALTER TABLE `productos` ADD CONSTRAINT `productos_ibfk_2` FOREIGN KEY (`proveedor_id`) REFERENCES `proveedores` (`id`) ON DELETE SET NULL;
+    ALTER TABLE `movimientos` ADD CONSTRAINT `movimientos_ibfk_1` FOREIGN KEY (`producto_id`) REFERENCES `productos` (`id`) ON DELETE CASCADE;
+    ALTER TABLE `movimientos` ADD CONSTRAINT `movimientos_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE RESTRICT;
+    ALTER TABLE `auditoria` ADD CONSTRAINT `auditoria_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL

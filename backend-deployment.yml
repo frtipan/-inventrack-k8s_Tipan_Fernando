@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventrack-backend
+  namespace: inventrack-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventrack-backend
+  template:
+    metadata:
+      labels:
+        app: inventrack-backend
+    spec:
+      containers:
+        - name: backend
+          image: inventrack-k8s-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: inventrack-config
+                  key: BACKEND_PORT
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: inventrack-config
+                  key: DB_HOST
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: inventrack-config
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: inventrack-secrets
+                  key: mysql-root-password
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: inventrack-config
+                  key: DB_NAME
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: inventrack-secrets
+                  key: jwt-secret
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: inventrack-secrets
+                  key: groq-api-key
+          volumeMounts:
+            - name: uploads-data
+              mountPath: /app/uploads
+      volumes:
+        - name: uploads-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventrack-backend
+  namespace: inventrack-prod
+spec:
+  selector:
+    app: inventrack-backend
+  ports:
+    - port: 4000
+      targetPort: 4000
+  type: ClusterIP
