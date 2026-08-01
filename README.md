@@ -165,8 +165,3 @@ Evidencia obtenida:
 - IP de Minikube: `192.168.49.2`
 - Ingress creado para los hosts: `localhost` y `conjunta3p.espe.edu.ec`
 - Pods del backend, frontend y MySQL en estado Running
-
-## Notas importantes
-- No subir secretos reales al repositorio.
-- En producción, reemplazar el uso de hosts por un registro DNS real para `conjunta3p.espe.edu.ec`.
-- Si el Ingress no responde inmediatamente, esperar unos minutos y comprobar de nuevo con `kubectl get pods -n ingress-nginx`.
