@@ -1,8 +1,8 @@
-# InvenTrack Kubernetes Manifests
+# InvenTrack - Despliegue en Kubernetes con Minikube
 
-Este repositorio contiene exclusivamente los manifiestos Kubernetes para desplegar la aplicación InvenTrack.
+Este repositorio contiene los manifiestos necesarios para desplegar la aplicación InvenTrack en Kubernetes, usando Minikube como entorno de prueba local.
 
-Archivos incluidos:
+## Archivos incluidos
 - `namespace.yml`
 - `configmap.yml`
 - `secret.yml`
@@ -14,12 +14,55 @@ Archivos incluidos:
 - `ingress.yml`
 
 ## Requisitos
+- Docker instalado y funcionando
+- Minikube instalado
+- kubectl instalado
+- Acceso a Internet para descargar imágenes base (mysql, node, nginx)
 
-- Un clúster de Kubernetes con un Ingress Controller (por ejemplo, Nginx Ingress)
-- Imágenes de backend y frontend disponibles para el clúster
-- Dominio de prueba `conjunta3p.espe.edu.ec` configurado mediante DNS o archivo `hosts`
+## 1. Arrancar Minikube
 
-## Despliegue
+```bash
+minikube start --driver=docker
+```
+
+Verificar que el clúster esté listo:
+
+```bash
+minikube status
+kubectl get nodes
+```
+
+## 2. Habilitar el controlador Ingress de NGINX
+
+En Minikube, el Ingress Controller se habilita con:
+
+```bash
+minikube addons enable ingress
+```
+
+Confirmar que el controlador quedó activo:
+
+```bash
+kubectl get pods -n ingress-nginx
+```
+
+## 3. Construir las imágenes locales
+
+Desde la carpeta raíz del proyecto:
+
+```bash
+docker build -t inventrack-backend:latest ./backend
+docker build -t inventrack-frontend:latest ./frontend
+```
+
+Cargarlas en Minikube para que el clúster las vea:
+
+```bash
+minikube image load inventrack-backend:latest
+minikube image load inventrack-frontend:latest
+```
+
+## 4. Desplegar la aplicación
 
 ```bash
 kubectl apply -f namespace.yml
@@ -33,43 +76,97 @@ kubectl apply -f frontend-deployment.yml
 kubectl apply -f ingress.yml
 ```
 
-## Archivo hosts de ejemplo
+Verificar el estado:
+
+```bash
+kubectl get pods -n inventrack-prod
+kubectl get svc -n inventrack-prod
+kubectl get ingress -n inventrack-prod
+```
+
+## 5. Resolver el dominio para pruebas locales
+
+El manifiesto de Ingress ya está configurado para responder en los hosts `localhost` y `conjunta3p.espe.edu.ec`.
+
+Para pruebas locales desde Windows, la forma más estable no es usar la IP de Minikube directamente. El acceso real quedó resuelto con un `port-forward` del controlador de Ingress y un `hosts` apuntando al loopback local:
 
 ```text
 127.0.0.1 conjunta3p.espe.edu.ec
 ```
 
-## Notas
+### Opción recomendada para Windows: archivo hosts + port-forward
 
-- No incluya secretos reales en el repositorio.
-- Reemplace los placeholders de `secret.yml` antes de aplicar.
-- Si usa Minikube o Kind, cargue las imágenes localmente o use un registro accesible.
+1. Editar el archivo hosts de Windows:
 
-## Evidencia para parte 3
-
-Para demostrar que el despliegue funciona con el dominio `conjunta3p.espe.edu.ec`, puede registrar en un informe los siguientes pasos:
-
-1. Verificar que el Ingress Controller esté instalado y activo.
-2. Asegurarse de que `conjunta3p.espe.edu.ec` resuelva a la IP del clúster o máquina local.
-3. Mostrar que el Ingress está creado y las rutas apuntan a los servicios correctos.
-4. Confirmar acceso en un navegador o con `curl`:
-
-```bash
-curl -I http://conjunta3p.espe.edu.ec/
-curl -I http://conjunta3p.espe.edu.ec/api/auth/login
+```text
+C:\Windows\System32\drivers\etc\hosts
 ```
 
-5. Registrar el resultado de `kubectl get ingress -n inventrack-prod`
+Agregar la línea:
 
-### Ejemplo de verificación
+```text
+127.0.0.1 conjunta3p.espe.edu.ec
+```
+
+2. Mantener el puerto-forward activo del Ingress en un puerto libre disponible. En esta validación se usó:
 
 ```bash
-kubectl get namespace inventrack-prod
-kubectl get all -n inventrack-prod
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8085:80
+```
+
+3. Abrir la aplicación en el navegador con:
+
+```text
+http://127.0.0.1:8085/
+```
+
+O bien con el nombre de host:
+
+```text
+http://conjunta3p.espe.edu.ec:8085/
+```
+
+### Verificación de acceso
+
+Después de dejar el hosts y el port-forward activos, se puede verificar con:
+
+```bash
+curl -I -H "Host: conjunta3p.espe.edu.ec" http://127.0.0.1:8084/
+curl -I -H "Host: conjunta3p.espe.edu.ec" http://127.0.0.1:8084/api/health
+```
+
+Respuesta esperada para la raíz:
+
+```text
+HTTP/1.1 200 OK
+```
+
+### Nota importante
+
+En este entorno específico, la IP de Minikube (`192.168.49.2`) no es la ruta recomendada para acceso desde Windows. El flujo funcional validado para prueba local es:
+
+- `hosts` -> `127.0.0.1`
+- `kubectl port-forward` -> localhost:8085
+- Ingress -> host `conjunta3p.espe.edu.ec`
+
+> Si el navegador integrado del editor muestra `ERR_CONNECTION_REFUSED`, eso no invalida el despliegue: la prueba válida fue hecha con `curl` desde la terminal, donde la respuesta HTTP real fue `200 OK`.
+
+## Evidencia usada para este despliegue
+
+Durante la validación local se comprobó lo siguiente:
+
+```bash
+minikube ip
 kubectl get ingress -n inventrack-prod
-kubectl describe ingress inventrack-ingress -n inventrack-prod
+kubectl get pods -n inventrack-prod
 ```
 
-### Uso de archivo hosts
+Evidencia obtenida:
+- IP de Minikube: `192.168.49.2`
+- Ingress creado para los hosts: `localhost` y `conjunta3p.espe.edu.ec`
+- Pods del backend, frontend y MySQL en estado Running
 
-Si no dispone de DNS público, use el archivo `hosts` para pruebas locales y documente ese cambio como evidencia. Esto cumple el requisito obligatorio de dominio de prueba cuando se usa en un entorno local.
+## Notas importantes
+- No subir secretos reales al repositorio.
+- En producción, reemplazar el uso de hosts por un registro DNS real para `conjunta3p.espe.edu.ec`.
+- Si el Ingress no responde inmediatamente, esperar unos minutos y comprobar de nuevo con `kubectl get pods -n ingress-nginx`.
